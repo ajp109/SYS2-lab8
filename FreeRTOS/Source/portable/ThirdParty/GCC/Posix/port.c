@@ -445,6 +445,9 @@ static uint64_t prvGetTimeNs( void )
 }
 /*-----------------------------------------------------------*/
 
+// AJP
+BaseType_t volatile pdTickDisabled = pdFALSE;
+
 /* commented as part of the code below in vPortSystemTickHandler,
  * to adjust timing according to full demo requirements */
 /* static uint64_t prvTickCount; */
@@ -464,6 +467,7 @@ static void * prvTimerTickHandler( void * arg )
          * preemption (if enabled)
          */
         Thread_t * thread = prvGetThreadFromTask( xTaskGetCurrentTaskHandle() );
+        while( pdTickDisabled );
         pthread_kill( thread->pthread, SIGALRM );
         usleep( portTICK_RATE_MICROSECONDS );
     }
