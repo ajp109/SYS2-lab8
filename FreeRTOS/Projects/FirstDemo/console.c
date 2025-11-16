@@ -9,16 +9,31 @@
 #include <signal.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
 
-/* Default "ISR" handler, override to handle */
-__attribute(( weak )) void console_ISR( void ) {
+static bool irqEnabled = false;
+
+/* IRQ enable and disable */
+void console_IRQ_enable(console_IRQ_set_t set)
+{
+  irqEnabled = ( ( set & IRQ_KEYBOARD ) != 0 );
+}
+void console_IRQ_disable(console_IRQ_set_t set)
+{
+  irqEnabled = ( ( set & IRQ_KEYBOARD ) == 0 );
+}
+
+/* Default "ISR", override to handle */
+__attribute(( weak )) void console_keyboard_ISR( void ) {
+  dprintf(2, "Default ISR triggered\n");
+  while( 1 );
 }
 
 /* Console configuration container, including received key */
-static struct console _console = { .init = 0 };
+static struct console _console = { .init = false };
 struct console * const console = &_console;
 
 /* Wrapped putc implementation. */
@@ -73,7 +88,9 @@ static void sig_handler( int signum )
 static void kb_handler( int signum )
 {
   ( void ) signum;
-  console_ISR( );
+  vPortDisableInterrupts( );
+  console_keyboard_ISR( );
+  vPortEnableInterrupts( );
 }
 
 /*
@@ -112,13 +129,16 @@ void *keyboardThreadFn( void *arg )
       break;
     }
 
-    pdTickDisabled = pdTRUE;
-    pthread_t thread = prvGetThreadFromTask( xTaskGetCurrentTaskHandle() );
-    pthread_kill( thread, SIGUSR2 );
-    pdTickDisabled = pdFALSE;
+    if( irqEnabled )
+    {
+      pdTickDisabled = pdTRUE;
+      pthread_t thread = prvGetThreadFromTask( xTaskGetCurrentTaskHandle() );
+      pthread_kill( thread, SIGUSR2 );
+      pdTickDisabled = pdFALSE;
+    }
   }
 
-  if ( status != 0 )
+  if( status != 0 )
   {
     dprintf( 2, "Read returned %jd\n", status );
     exit( 1 );
@@ -157,6 +177,6 @@ void console_init( void )
   pthread_t keyboardThread;
   pthread_create( &keyboardThread, NULL, keyboardThreadFn, NULL );
   
-  console->init = 1;
+  console->init = true;
 }
 
