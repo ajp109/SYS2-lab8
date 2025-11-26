@@ -77,7 +77,7 @@ static void cleanup( void )
 static void sig_handler( int signum )
 {
   cleanup( );
-  struct sigaction sa;
+  struct sigaction sa = { 0 };
   sa.sa_handler = SIG_DFL;
   sigemptyset( &sa.sa_mask );
   sigaction( signum, &sa, NULL );
@@ -160,7 +160,7 @@ void console_init( void )
   tcsetattr( STDIN_FILENO, TCSANOW, &newt );
 
   /* Trap most signals for cleanup */
-  struct sigaction sa;
+  struct sigaction sa = { 0 };
   sa.sa_handler = sig_handler;
   sigemptyset( &sa.sa_mask );
   sigaction( SIGINT, &sa, NULL );
@@ -169,7 +169,7 @@ void console_init( void )
   sigaction( SIGSEGV, &sa, NULL );
   sigaction( SIGTERM, &sa, NULL );
   atexit( cleanup );
-  struct sigaction sa_kb;
+  struct sigaction sa_kb = { 0 };
   sa_kb.sa_handler = kb_handler;
   sigemptyset( &sa_kb.sa_mask );
   sigaction( SIGUSR2, &sa_kb, NULL );
